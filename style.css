@@ -1,0 +1,19 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Cairo', 'Inter', sans-serif;
+}
+
+input:focus {
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #pdf-report-container, #pdf-report-container * {
+        visibility: visible;
+    }
+}
