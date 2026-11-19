@@ -96,7 +96,7 @@ function calculateRoot() {
     if (fxStr === '' || x0Str === '') return;
 
     let x0 = parseFloat(x0Str);
-    const maxSafetyIter = 100; // حد أمان داخلي لمنع التكرار اللانهائي
+    const maxSafetyIter = 100;
 
     try {
         const f = math.compile(fxStr);
@@ -109,7 +109,6 @@ function calculateRoot() {
             df = derivNode.compile();
         }
 
-        // فحص شرط التقارب
         const node = math.parse(fxStr);
         const d1 = math.derivative(node, 'x');
         const d2 = math.derivative(d1, 'x');
@@ -157,8 +156,17 @@ function calculateRoot() {
                 { x: xNext, y: 0 }
             ]);
 
-            // التوقف التلقائي بمجرد تطابق الناتج الحالي مع الناتج التالي (عند 5 أرقام عشرية)
+            // لو آخر ناتجين متساويين عند 5 أرقام عشرية، نضيف الصف التأكيدي الأخير ثم نوقف
             if (xi.toFixed(5) === xNext.toFixed(5)) {
+                const fNext = f.evaluate({ x: xNext });
+                const dfNext = df.evaluate({ x: xNext });
+                iterations.push({
+                    i: i + 1,
+                    xi: xNext,
+                    fxi: fNext,
+                    dfxi: dfNext,
+                    error: Math.abs(xNext - xi)
+                });
                 xi = xNext;
                 break;
             }
@@ -181,10 +189,10 @@ function calculateRoot() {
             tbody.innerHTML += `
                 <tr class="hover:bg-pink-50/50 dark:hover:bg-purple-950/20 transition">
                     <td class="py-3 px-4 font-semibold text-purple-600 dark:text-purple-400">${row.i}</td>
-                    <td class="py-3 px-4">${row.xi.toFixed(5)}</td>
-                    <td class="py-3 px-4">${row.fxi.toFixed(5)}</td>
-                    <td class="py-3 px-4">${row.dfxi.toFixed(5)}</td>
-                    <td class="py-3 px-4">${row.error.toFixed(5)}</td>
+                    <td class="py-3 px-4">${row.xi.toFixed(6)}</td>
+                    <td class="py-3 px-4">${row.fxi.toFixed(6)}</td>
+                    <td class="py-3 px-4">${row.dfxi.toFixed(6)}</td>
+                    <td class="py-3 px-4">${row.error.toFixed(6)}</td>
                 </tr>
             `;
         });
@@ -364,10 +372,10 @@ function exportToPDF() {
                         ${lastCalculationData.iterations.map(row => `
                             <tr>
                                 <td><b>${row.i}</b></td>
-                                <td>${row.xi.toFixed(5)}</td>
-                                <td>${row.fxi.toFixed(5)}</td>
-                                <td>${row.dfxi.toFixed(5)}</td>
-                                <td>${row.error.toFixed(5)}</td>
+                                <td>${row.xi.toFixed(6)}</td>
+                                <td>${row.fxi.toFixed(6)}</td>
+                                <td>${row.dfxi.toFixed(6)}</td>
+                                <td>${row.error.toFixed(6)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
