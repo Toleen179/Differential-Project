@@ -8,10 +8,11 @@ const translations = {
         langBtn: "English",
         settingsTitle: "إعدادات المسألة",
         lblFx: "دالة المعادلة f(x):",
+        phFx: "مثال: x^3 - 8*x + 5",
         lblDfx: "المشتقة f'(x) (اختياري):",
+        phDfx: "تلقائي",
         lblX0: "التخمين الأولي (x₀):",
-        lblTol: "نسبة الخطأ (Tolerance):",
-        lblMax: "أقصى عدد تكرارات:",
+        phX0: "مثال: 0",
         btnCalc: "احسب وحلل النتائج",
         lblRootFound: "الجذر التقريبي المحسوب:",
         lblChartTitle: "الرسم البياني والمماسات الهندسية",
@@ -28,10 +29,11 @@ const translations = {
         langBtn: "عربي",
         settingsTitle: "Problem Settings",
         lblFx: "Function f(x):",
+        phFx: "e.g. x^3 - 8*x + 5",
         lblDfx: "Derivative f'(x) (optional):",
+        phDfx: "Automatic",
         lblX0: "Initial Guess (x₀):",
-        lblTol: "Tolerance:",
-        lblMax: "Max Iterations:",
+        phX0: "e.g. 0",
         btnCalc: "Calculate & Analyze",
         lblRootFound: "Calculated Root:",
         lblChartTitle: "Graph & Tangent Lines",
@@ -55,17 +57,20 @@ function toggleLanguage() {
     document.getElementById('lang-btn-text').innerText = t.langBtn;
     document.getElementById('settings-title').innerHTML = `<i class="fa-solid fa-sliders"></i> ${t.settingsTitle}`;
     document.getElementById('lbl-fx').innerText = t.lblFx;
+    document.getElementById('fx-input').placeholder = t.phFx;
     document.getElementById('lbl-dfx').innerText = t.lblDfx;
+    document.getElementById('dfx-input').placeholder = t.phDfx;
     document.getElementById('lbl-x0').innerText = t.lblX0;
-    document.getElementById('lbl-tol').innerText = t.lblTol;
-    document.getElementById('lbl-max').innerText = t.lblMax;
+    document.getElementById('x0-input').placeholder = t.phX0;
     document.getElementById('btn-calc').innerHTML = `<i class="fa-solid fa-play"></i> ${t.btnCalc}`;
     document.getElementById('lbl-root-found').innerText = t.lblRootFound;
     document.getElementById('lbl-chart-title').innerHTML = `<i class="fa-solid fa-chart-line"></i> ${t.lblChartTitle}`;
     document.getElementById('lbl-table-title').innerHTML = `<i class="fa-solid fa-table-list"></i> ${t.lblTableTitle}`;
     document.getElementById('btn-pdf-text').innerText = t.btnPdfText;
     
-    calculateRoot();
+    if (document.getElementById('fx-input').value.trim() !== '') {
+        calculateRoot();
+    }
 }
 
 function toggleTheme() {
@@ -78,15 +83,20 @@ function toggleTheme() {
         html.classList.add('dark');
         icon.className = "fa-solid fa-sun text-pink-400";
     }
-    if(chartInstance) calculateRoot();
+    if (chartInstance && document.getElementById('fx-input').value.trim() !== '') {
+        calculateRoot();
+    }
 }
 
 function calculateRoot() {
-    const fxStr = document.getElementById('fx-input').value;
+    const fxStr = document.getElementById('fx-input').value.trim();
     const dfxStrInput = document.getElementById('dfx-input').value.trim();
-    let x0 = parseFloat(document.getElementById('x0-input').value);
-    const tol = parseFloat(document.getElementById('tol-input').value);
-    const maxIter = parseInt(document.getElementById('max-iter').value);
+    const x0Str = document.getElementById('x0-input').value.trim();
+
+    if (fxStr === '' || x0Str === '') return;
+
+    let x0 = parseFloat(x0Str);
+    const maxSafetyIter = 100; // حد أمان داخلي لمنع التكرار اللانهائي
 
     try {
         const f = math.compile(fxStr);
@@ -99,6 +109,7 @@ function calculateRoot() {
             df = derivNode.compile();
         }
 
+        // فحص شرط التقارب
         const node = math.parse(fxStr);
         const d1 = math.derivative(node, 'x');
         const d2 = math.derivative(d1, 'x');
@@ -120,19 +131,18 @@ function calculateRoot() {
         let iterations = [];
         let xi = x0;
         let tangentLinesData = [];
-        let error = 1;
 
-        for (let i = 0; i < maxIter; i++) {
+        for (let i = 0; i < maxSafetyIter; i++) {
             const fxi = f.evaluate({ x: xi });
             const dfxi = df.evaluate({ x: xi });
 
             if (dfxi === 0) {
-                alert("المشتقة تساوي صِفراً.");
+                alert("المشتقة تساوي صِفراً، لا يمكن إكمال الحل.");
                 break;
             }
 
             const xNext = xi - (fxi / dfxi);
-            error = Math.abs(xNext - xi);
+            const error = Math.abs(xNext - xi);
 
             iterations.push({
                 i: i,
@@ -147,10 +157,12 @@ function calculateRoot() {
                 { x: xNext, y: 0 }
             ]);
 
-            if (error < tol || Math.abs(fxi) < tol) {
+            // التوقف التلقائي بمجرد تطابق الناتج الحالي مع الناتج التالي (عند 5 أرقام عشرية)
+            if (xi.toFixed(5) === xNext.toFixed(5)) {
                 xi = xNext;
                 break;
             }
+
             xi = xNext;
         }
 
@@ -178,7 +190,7 @@ function calculateRoot() {
         });
 
         document.getElementById('result-summary').classList.remove('hidden');
-        document.getElementById('root-output').innerText = xi.toFixed(6);
+        document.getElementById('root-output').innerText = xi.toFixed(5);
 
         plotGraph(f, x0, xi, tangentLinesData);
 
@@ -186,14 +198,14 @@ function calculateRoot() {
             method: 'Newton-Raphson Method',
             fx: fxStr,
             x0: x0,
-            tol: tol,
-            root: xi.toFixed(6),
+            root: xi.toFixed(5),
             convergence: convergenceMsg,
             iterations: iterations
         };
 
     } catch (err) {
         console.error(err);
+        alert("تأكدي من كتابة المعادلة بصيغة رياضية صحيحة (مثل: x^3 - 8*x + 5)");
     }
 }
 
@@ -282,7 +294,7 @@ function plotGraph(f, xStart, xFinal, tangentLines = []) {
 
 function exportToPDF() {
     if (!lastCalculationData) {
-        alert("الرجاء إجراء الحسابات أولاً قبل تصدير التقرير.");
+        alert("الرجاء إدخال المعادلة وحسابها أولاً قبل تصدير التقرير.");
         return;
     }
 
@@ -294,7 +306,7 @@ function exportToPDF() {
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
-            <title>تقرير تحليل العددي - Numerical Analysis Report</title>
+            <title>تقرير التحليل العددي - Numerical Analysis Report</title>
             <style>
                 body { font-family: 'Cairo', sans-serif; padding: 30px; color: #333; background: #fff; }
                 .header { text-align: center; border-bottom: 3px solid #d946ef; padding-bottom: 15px; margin-bottom: 25px; }
@@ -309,13 +321,13 @@ function exportToPDF() {
                 th { background-color: #fae8ff; color: #701a75; }
                 .chart-container { text-align: center; margin: 20px 0; }
                 .chart-container img { max-width: 80%; height: 220px; border-radius: 8px; border: 1px solid #e5e7eb; }
-                .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af; border-top: 1px solid #eee; pt: 10px; }
+                .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af; border-top: 1px solid #eee; padding-top: 10px; }
             </style>
         </head>
         <body>
             <div class="header">
-                <h1>تقرير تحليل العددي (طريقة نيوتن-رافسون)</h1>
-                <p>موقع حل معادلات التحليل العددي المتقدم</p>
+                <h1>تقرير التحليل العددي (طريقة نيوتن-رافسون)</h1>
+                <p>حل المعادلات غير الخطية والتمثيل البياني</p>
             </div>
 
             <div class="grid">
@@ -323,7 +335,6 @@ function exportToPDF() {
                     <h3>معلومات المسألة</h3>
                     <p><b>الدالة f(x):</b> ${lastCalculationData.fx}</p>
                     <p><b>التخمين الأولي (x₀):</b> ${lastCalculationData.x0}</p>
-                    <p><b>نسبة الخطأ (Tolerance):</b> ${lastCalculationData.tol}</p>
                 </div>
                 <div class="section-box">
                     <h3>النتائج النهائية</h3>
@@ -364,7 +375,7 @@ function exportToPDF() {
             </div>
 
             <div class="footer">
-                تم استخراج هذا التقرير آلياً عبر حاسبة نيوتن-رافسون الذكية | تمنياتنا بالتوفيق الدائم ✨
+                تم استخراج هذا التقرير آلياً عبر حاسبة نيوتن-رافسون الذكية ✨
             </div>
 
             <script>
@@ -379,7 +390,3 @@ function exportToPDF() {
     reportWindow.document.write(htmlContent);
     reportWindow.document.close();
 }
-
-window.onload = () => {
-    calculateRoot();
-};
